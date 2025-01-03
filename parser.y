@@ -3,13 +3,13 @@
 #include <stdlib.h>
 #include "nodes.hpp"
 #include "output.hpp"
-#include "semantic_visitor.hpp"
+#include "symbol_table.hpp"
 
 
 // bison declarations
 extern int yylineno;
 extern int yylex();
-//extern SymbolTable symbolTable;
+extern SymbolTable symbolTable;
 
 void yyerror(const char*);
 
@@ -71,8 +71,8 @@ Funcs   :
         }
         | FuncDecl Funcs                                              
         {
-                //auto func_decl= std::dynamic_pointer_cast<ast::FuncDecl>($1);
-                //symbolTable.addFunctions(*func_decl);
+                auto func_decl= std::dynamic_pointer_cast<ast::FuncDecl>($1);
+                symbolTable.addFunctions(*func_decl);
                 auto funcs = std::dynamic_pointer_cast<ast::Funcs>($2);
                 funcs->push_front(std::dynamic_pointer_cast<ast::FuncDecl>($1));
                 

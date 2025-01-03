@@ -36,7 +36,7 @@ public:
 
     void visit(ast::ID &node) override {
         //printer.emitVar("tetsts", ast::BuiltInType::INT, node.line);
-        std::cout << "ID" << std::endl;
+        //std::cout << "ID" << std::endl;
         if (!symbolTable.isVariableDefined(node.value)) {
             output::errorUndef(node.line, node.value);
         }
@@ -88,11 +88,12 @@ public:
     }
 
     void visit(ast::Call &node) override {
-        std::cout << "CALL" << std::endl;
+        //std::cout << "isFunctionDefined??  " <<node.func_id->value << std::endl; 
         if (!symbolTable.isFunctionDefined(node.func_id->value)) {
             
             output::errorUndefFunc(node.line, node.func_id->value);
         }
+        //std::cout << "CALL" << std::endl;
         //auto funcs =std::dynamic_pointer_cast<ast::Funcs>(node.func_id);
         //funcs->accept(*this);
         //node.func_id->accept(*this);
@@ -142,6 +143,8 @@ public:
 
     void visit(ast::VarDecl &node) override {
         if (!symbolTable.addVariable(node.id->value, node.type->type)) {
+            //std::cout << "find in VarDecl " << std::endl;
+
             output::errorDef(node.line, node.id->value);
         }
         if (node.init_exp) {
@@ -157,6 +160,7 @@ public:
 
     void visit(ast::Formal &node) override {
         if (!symbolTable.addVariable(node.id->value, node.type->type)) {
+            //std::cout << "find in Formal " << std::endl;
             output::errorDef(node.line, node.id->value);
         }
         printer.emitVar(node.id->value, node.type->type, symbolTable.getOffset(node.id->value));
@@ -169,12 +173,13 @@ public:
     }
 
     void visit(ast::FuncDecl &node) override {
-        if (!symbolTable.addFunction(node.id->value, node.return_type->type)) {
-            output::errorDef(node.line, node.id->value);
-        }
-        std::cout << "aa" << std::endl;
+        // if (!symbolTable.addFunction(node.id->value, node.return_type->type)) {
+        //     std::cout << "find in FuncDecl " << std::endl;
+        //     output::errorDef(node.line, node.id->value);
+        // }
+        //std::cout << "aa" << std::endl;
         printer.emitFunc(node.id->value, node.return_type->type, symbolTable.getParamTypes(node.id->value));
-        symbolTable.enterScope();
+        symbolTable.enterfScope();
         printer.beginScope();
         node.formals->accept(*this);
         node.body->accept(*this);
@@ -184,14 +189,10 @@ public:
 
     void visit(ast::Funcs &node) override {
         for (auto &func : node.funcs) {
-            
             func->accept(*this);
-            //std::cout << "aaa" << std::endl;
-            
         }
     }
 
-    SymbolTable symbolTable;
     output::ScopePrinter &printer;
     bool inLoop = false;
 };

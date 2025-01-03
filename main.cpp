@@ -1,11 +1,14 @@
 #include "output.hpp"
 #include "nodes.hpp"
 #include "semantic_visitor.hpp"
+#include "decl.hpp"
 
 // Extern from the bison-generated parser
 extern int yyparse();
-
 extern std::shared_ptr<ast::Node> program;
+
+// Define the symbolTable instance
+SymbolTable symbolTable;
 
 int main() {
     // Parse the input. The result is stored in the global variable `program`
@@ -14,17 +17,13 @@ int main() {
     output::ScopePrinter scopePrinter;
     // Perform semantic analysis
     SemanticVisitor semanticVisitor(scopePrinter);
-    
     program->accept(semanticVisitor);
 
-    // add print and printi functions to global buffer
-   
-    scopePrinter.emitFunc("print", ast::BuiltInType::VOID, {ast::BuiltInType::INT});
+    // Add print and printi functions to global buffer
+    scopePrinter.emitFunc("print", ast::BuiltInType::VOID, {ast::BuiltInType::STRING});
     scopePrinter.emitFunc("printi", ast::BuiltInType::VOID, {ast::BuiltInType::INT});
 
-     std::cout << scopePrinter;
+    std::cout << scopePrinter;
 
-    // Print the AST using the PrintVisitor
-    //output::PrintVisitor printVisitor;
-    //program->accept(printVisitor);
+    return 0;
 }

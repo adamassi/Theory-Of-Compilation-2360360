@@ -3,6 +3,7 @@
 
 #include "symbol_table.hpp"
 
-     //SymbolTable symbolTable;
+// Declare the symbolTable instance as extern
+extern SymbolTable symbolTable;
 
- #endif // DECL_HPP
+#endif // DECL_HPP

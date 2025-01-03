@@ -20,16 +20,38 @@ public:
         if (currentScope().variables.count(name) > 0) {
             return false;
         }
+        // print number of scopes
+        std::cout << scopes.size() << std::endl;
+        //print all variables for dubug
+         for (auto it = currentScope().variables.begin(); it != currentScope().variables.end(); ++it) {
+            std::cout << it->first << std::endl;
+        }
+
         currentScope().variables[name] = {type, currentOffset++};
         return true;
     }
     void addFunctions(ast::FuncDecl &node){
+        //for dubug addFunctions
+        //std::cout << "addFunctions" << std::endl;
+        //std::cout << node.id->value << std::endl;
         functions[node.id->value] = {node.return_type->type, {}};
         for (auto &formal : node.formals->formals) {
             functions[node.id->value].paramTypes.push_back(formal->type->type);
         }
+        //print all functions for dubug 
+        // for (auto it = functions.begin(); it != functions.end(); ++it) {
+        //     std::cout << it->first << std::endl;
+        // }
+        //std::cout << "done addFunctions" << std::endl;
     }
     bool addFunction(const std::string &name, ast::BuiltInType returnType) {
+       // std::cout << "addFunction" << std::endl;
+        //std::cout << name << std::endl;
+        // print all functions for dubug
+        // for (auto it = functions.begin(); it != functions.end(); ++it) {
+        //     std::cout << it->first << std::endl;
+        // }
+        //std::cout << "done" << std::endl;
         if (functions.count(name) > 0) {
             return false;
         }
@@ -50,15 +72,15 @@ public:
         // Check if function is defined in the global buffer
         // print all functions
         for (auto it = functions.begin(); it != functions.end(); ++it) {
-            std::cout << it->first << std::endl;
+            //std::cout << it->first << std::endl;
             if(it->first == name){
                 
-                std::cout <<name << "true"<<std::endl;
+                //std::cout <<name << "true"<<std::endl;
                 return true;
             }
         }
         //std::cout << name << std::endl;
-        std::cout << "a"<<functions.count(name) << std::endl;
+       // std::cout << "false"<<functions.count(name) << std::endl;
         
          
         return false;
@@ -83,9 +105,14 @@ public:
     }
 
     void enterScope() {
+        currentOffset = 0;
         scopes.push_back(Scope());
     }
-
+    //for new function scope
+    void enterfScope() {
+        currentOffset = -1;
+        scopes.push_back(Scope());
+    }
     void exitScope() {
         scopes.pop_back();
     }
