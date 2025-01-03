@@ -21,9 +21,9 @@ printOk (bool) -> void
       ---end scope---
     ---end scope---
     ---begin scope---
-    ---end scope---
-    ---begin scope---
-    x int 1
+      ---begin scope---
+      x int 1
+      ---end scope---
     ---end scope---
     ---begin scope---
     ---end scope---

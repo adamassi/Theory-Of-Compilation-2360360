@@ -129,9 +129,7 @@ public:
     void visit(ast::If &node) override {
         symbolTable.enterlScope();
         printer.beginScope();
-         node.condition->accept(*this);
-        printer.endScope();
-        symbolTable.exitScope();
+        node.condition->accept(*this);
         //
         symbolTable.enterlScope();
         printer.beginScope();
@@ -139,6 +137,8 @@ public:
         printer.endScope();
         symbolTable.exitScope();
         //
+        printer.endScope();
+        symbolTable.exitScope();
         if (node.otherwise) {
             symbolTable.enterlScope();
             printer.beginScope();
