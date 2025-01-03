@@ -1,28 +1,31 @@
-1
-1
-x
-1
-y
-x
-1
-1
-isOk
-1
-i
-isOk
+CALL printOk
+CALL print
+CALL printi
+CALL print
+CALL print
 ---begin global scope---
-main () -> void
-printOk (bool) -> void
 print (string) -> void
 printi (int) -> void
+main () -> void
+printOk (bool) -> void
   ---begin scope---
-  x int -1
-  y byte 0
-  z int 1
+  x int 0
+  y byte 1
+  z int 2
   ---end scope---
   ---begin scope---
   isOk bool -1
   i int 0
-  x int 1
+    ---begin scope---
+      ---begin scope---
+      ---end scope---
+    ---end scope---
+    ---begin scope---
+    ---end scope---
+    ---begin scope---
+    x int 1
+    ---end scope---
+    ---begin scope---
+    ---end scope---
   ---end scope---
 ---end global scope---

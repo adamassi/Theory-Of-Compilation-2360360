@@ -93,7 +93,8 @@ public:
             
             output::errorUndefFunc(node.line, node.func_id->value);
         }
-        //std::cout << "CALL" << std::endl;
+
+        std::cout << "CALL "<<node.func_id->value << std::endl;
         //auto funcs =std::dynamic_pointer_cast<ast::Funcs>(node.func_id);
         //funcs->accept(*this);
         //node.func_id->accept(*this);
@@ -126,18 +127,56 @@ public:
     }
 
     void visit(ast::If &node) override {
-        node.condition->accept(*this);
+        symbolTable.enterlScope();
+        printer.beginScope();
+         node.condition->accept(*this);
+        printer.endScope();
+        symbolTable.exitScope();
+        //
+        symbolTable.enterlScope();
+        printer.beginScope();
         node.then->accept(*this);
+        printer.endScope();
+        symbolTable.exitScope();
+        //
         if (node.otherwise) {
+            symbolTable.enterlScope();
+            printer.beginScope();
             node.otherwise->accept(*this);
+            printer.endScope();
+            symbolTable.exitScope();
         }
+
+
+        // if (node.otherwise) {
+        // // Statement to be executed if the condition is false. For an if statement without else, this field is nullptr
+        //     node.otherwise->accept(*this);
+        // }
+        // else {
+        // // Statement to be executed if the condition is true
+        //     node.then->accept(*this);
+        // }
+        //printer.endScope();
+        
+        
     }
 
     void visit(ast::While &node) override {
+        //std::cout << "While" << std::endl;
         bool previousInLoop = inLoop;
         inLoop = true;
+        symbolTable.enterlScope();
+        printer.beginScope();
         node.condition->accept(*this);
+        symbolTable.enterlScope();
+        printer.beginScope();
         node.body->accept(*this);
+        printer.endScope();
+        symbolTable.exitScope();
+        printer.endScope();
+        symbolTable.exitScope();
+        //
+        //node.body->accept(*this);
         inLoop = previousInLoop;
     }
 
@@ -159,17 +198,20 @@ public:
     }
 
     void visit(ast::Formal &node) override {
-        if (!symbolTable.addVariable(node.id->value, node.type->type)) {
+
+        symbolTable.addVariablef(node.id->value, node.type->type);
             //std::cout << "find in Formal " << std::endl;
-            output::errorDef(node.line, node.id->value);
-        }
+            //output::errorDef(node.line, node.id->value);
+        //}
         printer.emitVar(node.id->value, node.type->type, symbolTable.getOffset(node.id->value));
     }
 
     void visit(ast::Formals &node) override {
+        symbolTable.currentOffset = -1;
         for (auto &formal : node.formals) {
             formal->accept(*this);
         }
+        symbolTable.currentOffset = 0;
     }
 
     void visit(ast::FuncDecl &node) override {
@@ -179,7 +221,7 @@ public:
         // }
         //std::cout << "aa" << std::endl;
         printer.emitFunc(node.id->value, node.return_type->type, symbolTable.getParamTypes(node.id->value));
-        symbolTable.enterfScope();
+        symbolTable.enterScope();
         printer.beginScope();
         node.formals->accept(*this);
         node.body->accept(*this);

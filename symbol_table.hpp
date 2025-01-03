@@ -15,17 +15,20 @@ public:
         functions["printi"] = {ast::BuiltInType::VOID, {ast::BuiltInType::INT}};
         
     }
-
+    //add variable to the current scope be formals
+    void addVariablef(const std::string &name, ast::BuiltInType type) {
+        currentScope().variables[name] = {type, currentOffset--};
+    }
     bool addVariable(const std::string &name, ast::BuiltInType type) {
         if (currentScope().variables.count(name) > 0) {
             return false;
         }
         // print number of scopes
-        std::cout << scopes.size() << std::endl;
-        //print all variables for dubug
-         for (auto it = currentScope().variables.begin(); it != currentScope().variables.end(); ++it) {
-            std::cout << it->first << std::endl;
-        }
+        // std::cout << scopes.size() << std::endl;
+        // //print all variables for dubug
+        //  for (auto it = currentScope().variables.begin(); it != currentScope().variables.end(); ++it) {
+        //     std::cout << it->first << std::endl;
+        // }
 
         currentScope().variables[name] = {type, currentOffset++};
         return true;
@@ -113,11 +116,15 @@ public:
         currentOffset = -1;
         scopes.push_back(Scope());
     }
+    // for loop scope
+    void enterlScope() {
+        scopes.push_back(Scope());
+    }
     void exitScope() {
         scopes.pop_back();
     }
 
-private:
+
     struct Variable {
         ast::BuiltInType type;
         int offset;

@@ -17,11 +17,12 @@ int main() {
     output::ScopePrinter scopePrinter;
     // Perform semantic analysis
     SemanticVisitor semanticVisitor(scopePrinter);
-    program->accept(semanticVisitor);
-
     // Add print and printi functions to global buffer
     scopePrinter.emitFunc("print", ast::BuiltInType::VOID, {ast::BuiltInType::STRING});
     scopePrinter.emitFunc("printi", ast::BuiltInType::VOID, {ast::BuiltInType::INT});
+    program->accept(semanticVisitor);
+
+    
 
     std::cout << scopePrinter;
 
