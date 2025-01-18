@@ -62,6 +62,11 @@ namespace ast {
 
     /* Base class for all statements */
     class Statement : virtual public Node {
+        public:
+        BuiltInType t;
+        BuiltInType getT(){
+            return t;
+        }
     };
 
     /* Number literal */
@@ -112,7 +117,7 @@ namespace ast {
     public:
         // Value of the boolean
         bool value;
-        BuiltInType type = BuiltInType::BOOL;
+        
         // Constructor that receives the boolean value
         explicit Bool(bool value);
 

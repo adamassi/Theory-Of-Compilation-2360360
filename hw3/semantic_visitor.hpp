@@ -10,25 +10,23 @@ using namespace std;
 using namespace ast;
 
 
-    BuiltInType getType(Node &node) {
-        return BuiltInType::INT;
-    }
 
 class SemanticVisitor : public Visitor {
 public:
-
+    bool fromFunction = false;
+    BuiltInType currentType; // Context variable to hold the current type
     SemanticVisitor(output::ScopePrinter &printer) : printer(printer) {
     }
 
     void visit(ast::Num &node) override {
-        //cout << "Num" << endl;
+       // cout << "Num" << endl;
         //cout << "Num.type" << node.type << endl;
         // No semantic checks needed for Num
         node.type = BuiltInType::INT;
     }
 
     void visit(ast::NumB &node) override {
-        //cout << "NumB" <<node.type << endl;
+       // cout << "NumB" <<node.type << endl;
         node.type = BuiltInType::BYTE;
         if (node.value > 255) {
             output::errorByteTooLarge(node.line, node.value);
@@ -44,12 +42,15 @@ public:
 
     void visit(ast::Bool &node) override {
         // No semantic checks needed for Bool
+        //cout << "Bool" << endl;
         node.type = BuiltInType::BOOL;
+        //cout << "Bool.type" << node.type << endl;
     }
 
     void visit(ast::ID &node) override {
         //printer.emitVar("tetsts", ast::BuiltInType::INT, node.line);
         //std::cout << "ID" << std::endl;
+        //chck if the node.id->value is in the  functions names
         if (!symbolTable.isVariableDefined(node.value)) {
             output::errorUndef(node.line, node.value);
         }
@@ -61,27 +62,46 @@ public:
     }
 
     void visit(ast::BinOp &node) override {
+        //cout << "BinOp" << node.op << endl;
+
         node.left->accept(*this);
         node.right->accept(*this);
         // Additional type checks can be added here
+        //cout << "node.left->type::" << node.left->type << endl;
+        //cout << "node.right->type::" << node.right->type << endl;
          if (node.left->type != node.right->type) {
+            //cout << "error mismatch" << endl;
             // i dont know if byte relop int is allowed or not
             if(node.left->type == BuiltInType::BYTE && node.right->type == BuiltInType::INT ||
                 node.left->type == BuiltInType::INT && node.right->type == BuiltInType::BYTE)
             {  
                 // this is legit and correct
+                node.type = BuiltInType::INT;
             }
             else{
+                //cout << "binop error mismatch" << endl;
                 output::errorMismatch(node.line);
             }   
         }
-        node.type = ast::BuiltInType::INT;
+        else{
+           // cout << "node.left->type::" << node.left->type << endl;
+            node.type = node.left->type;
+        }
+        
     
     }
 
     void visit(ast::RelOp &node) override {
+        //cout << "RelOp" << node.op << endl; 
         node.left->accept(*this);
+        //cout<<"VOID"<<BuiltInType::VOID<<endl;
+        //cout << "node.left->type::" << node.left->type << endl;
         node.right->accept(*this);
+        //cout << "node.right->type::" << node.right->type << endl;
+        if(node.left->type == BuiltInType::BOOL|| node.right->type == BuiltInType::BOOL){
+            output::errorMismatch(node.line);
+        }
+        
         // Additional type checks can be added here
         if (node.left->type != node.right->type) {
             // i dont know if byte relop int is allowed or not
@@ -91,9 +111,11 @@ public:
                 // this is legit and correct
             }
             else{
+                //cout << "relop error mismatch" << endl;
                 output::errorMismatch(node.line);
             }   
         }
+        
         node.type = ast::BuiltInType::BOOL;
     }
 
@@ -101,6 +123,7 @@ public:
         node.exp->accept(*this);
         // Additional type checks can be added here
         if(node.exp->type != BuiltInType::BOOL){
+            //cout << "not error mismatch" << endl;
             output::errorMismatch(node.line);
         }
         node.type = ast::BuiltInType::BOOL;
@@ -108,14 +131,28 @@ public:
 
     void visit(ast::And &node) override {
         node.left->accept(*this);
+        if (node.left->type != BuiltInType::BOOL) {
+            output::errorMismatch(node.line);
+        }
+        
+        
         node.right->accept(*this);
+        if (node.right->type != BuiltInType::BOOL) {
+            output::errorMismatch(node.line);
+        }
         node.type = ast::BuiltInType::BOOL;
         // Additional type checks can be added here
     }
 
     void visit(ast::Or &node) override {
         node.left->accept(*this);
+        if (node.left->type != BuiltInType::BOOL) {
+            output::errorMismatch(node.line);
+        }
         node.right->accept(*this);
+        if (node.right->type != BuiltInType::BOOL) {
+            output::errorMismatch(node.line);
+        }
         node.type = ast::BuiltInType::BOOL;
         // Additional type checks can be added here
     }
@@ -127,6 +164,7 @@ public:
     }
 
     void visit(ast::Cast &node) override {
+        //cout << "Cast" << endl;
         node.exp->accept(*this);
         node.target_type->accept(*this);
         
@@ -152,6 +190,7 @@ public:
 
                 }
                 else{
+                    //cout << "cast error mismatch" << endl;
                     output::errorMismatch(node.line);
                 }
             }
@@ -165,11 +204,13 @@ public:
 
         for (auto &exp : node.exps) {
             exp->accept(*this);
+
         }
     }
 
     void visit(ast::Call &node) override {
         //std::cout << "isFunctionDefined??  " <<node.func_id->value << std::endl; 
+        //std::cout << "CALL "<<node.func_id->value << std::endl;
         if (!symbolTable.isFunctionDefined(node.func_id->value)) {
             if(symbolTable.isVariableDefined(node.func_id->value)){
                 output::errorDefAsVar(node.line, node.func_id->value);
@@ -177,6 +218,7 @@ public:
                 
             output::errorUndefFunc(node.line, node.func_id->value);
         }
+        
         node.args->accept(*this);
 
         if (!symbolTable.logicFun(node)) {                                      
@@ -184,8 +226,11 @@ public:
             //cout << "func not defined" << endl;
             output::errorPrototypeMismatch(node.line, node.func_id->value,paramTypes);
         }
-
-        //std::cout << "CALL "<<node.func_id->value << std::endl;
+        node.type = symbolTable.getFunctionType(node.func_id->value);
+        
+        
+        
+        
         //auto funcs =std::dynamic_pointer_cast<ast::Funcs>(node.func_id);
         //funcs->accept(*this);
         //node.func_id->accept(*this);
@@ -194,11 +239,30 @@ public:
 
     void visit(ast::Statements &node) override {
         //cout << "Statements" << endl;
-        // printer.beginScope();
-        for (auto &stmt : node.statements) {
-            stmt->accept(*this);
+        if(fromFunction){
+            fromFunction=false;
+            //printer.beginScope();
+            //cout << "Statements" << endl;
+            for (auto &stmt : node.statements){
+                stmt->t = node.t;
+                currentType=node.t;
+                //std::cout<<"statements.t(type): "<<node.t<<endl;
+                //std::cout<<"stmt.t(type): "<<stmt->t<<endl;
+                stmt->accept(*this);
+            }
+           // printer.endScope();
         }
-        //printer.endScope();
+        else{
+            printer.beginScope();
+            symbolTable.enterlScope();
+            for (auto &stmt : node.statements){
+                //cout<<"statements.t"<<node.t<<endl;
+                stmt->t = node.t;
+                stmt->accept(*this);
+            }
+            printer.endScope();
+            symbolTable.exitScope();
+        }
     }
 
     void visit(ast::Break &node) override {
@@ -214,52 +278,66 @@ public:
     }
 
     void visit(ast::Return &node) override {
+        //cout<<"return"<<endl;
         if (node.exp) {
             node.exp->accept(*this);
+            if (currentType!=node.exp->type)
+            {
+                //cout << node.getT() << endl;
+                //cout << node.exp->type << endl;
+                /* code */
+                if (!(currentType == BuiltInType::INT && node.exp->type == BuiltInType::BYTE))
+                {
+                    output::errorMismatch(node.line);
+                }
+            }
+            //cout << "return exp" << node.t << endl;
+        }
+        else{
+            if (node.t != BuiltInType::VOID)
+            {
+                output::errorMismatch(node.line);
+            }
         }
     }
 
     void visit(ast::If &node) override {
-        symbolTable.enterlScope();
-        //printer.beginScope();
+        int temp=symbolTable.currentOffset;
+         symbolTable.enterlScope();
+         printer.beginScope();
         node.condition->accept(*this);
-        //
-        symbolTable.enterlScope();
-        printer.beginScope();
+        if (node.condition->type != BuiltInType::BOOL) {
+            output::errorMismatch(node.condition->line);
+        }
+        //symbolTable.enterlScope();
+        //printer.beginScope();
         //node.then->accept(*this);
         // if the type of the node is statement*S* so we have LBRACE and RBRACE
         // so we need to print the scope
         // Else we don't need to print the scope because we have just one statement.
         if (dynamic_cast<ast::Statements*>(node.then.get())) {
-            printer.beginScope();
+            //cout << "if" << endl;
+           // printer.beginScope();
             node.then->accept(*this);
-            printer.endScope();
+            //printer.endScope();
         } else {
             node.then->accept(*this);
         }
+        //printer.endScope();
+        //tgrbo
+        // symbolTable.exitScope();
+        //bt5ls altgrob
+        //
         printer.endScope();
         symbolTable.exitScope();
-        //
-        //printer.endScope();
-        symbolTable.exitScope();
+        symbolTable.currentOffset=temp;
         if (node.otherwise) {
-            symbolTable.enterlScope();
+            //symbolTable.enterlScope();
             printer.beginScope();
             node.otherwise->accept(*this);
             printer.endScope();
-            symbolTable.exitScope();
+            //symbolTable.exitScope();
         }
-
-
-        // if (node.otherwise) {
-        // // Statement to be executed if the condition is false. For an if statement without else, this field is nullptr
-        //     node.otherwise->accept(*this);
-        // }
-        // else {
-        // // Statement to be executed if the condition is true
-        //     node.then->accept(*this);
-        // }
-        //printer.endScope();
         
         
     }
@@ -268,6 +346,7 @@ public:
         //std::cout << "While" << std::endl;
         bool previousInLoop = inLoop;
         inLoop = true;
+        int temp=symbolTable.currentOffset;
         symbolTable.enterlScope();
         printer.beginScope();
         node.condition->accept(*this);
@@ -279,16 +358,20 @@ public:
         // so we need to print the scope
         // Else we don't need to print the scope because we have just one statement.
         if (dynamic_cast<ast::Statements*>(node.body.get())) {
-            printer.beginScope();
+            //printer.beginScope();
             node.body->accept(*this);
-            printer.endScope();
+            //printer.endScope();
         } else {
             node.body->accept(*this);
+        }
+        if (node.condition->type != BuiltInType::BOOL) {
+            output::errorMismatch(node.condition->line);
         }
        // printer.endScope();
         //symbolTable.exitScope();
         printer.endScope();
         symbolTable.exitScope();
+        symbolTable.currentOffset=temp;
         //
         //node.body->accept(*this);
         inLoop = previousInLoop;
@@ -296,17 +379,29 @@ public:
 
     void visit(ast::VarDecl &node) override {
         //cout << "VarDecl" << endl;
-        if (!symbolTable.addVariable(node.id->value, node.type->type)) {
-            //std::cout << "find in VarDecl " << std::endl;
-
-            output::errorDef(node.line, node.id->value);
-        }
+        
          node.type->accept(*this);
         // node.init_exp if the right side of the assignment is not null
         if (node.init_exp) {
             //cout << "node.init_exp" << endl;
             //han bnro7 3la numb
+            
+            if (dynamic_cast<ast::ID*>(node.init_exp.get())) {
+                //std::cout << "errorDefAsFunc" << std::endl;
+                
+            
+                if (symbolTable.isFunctionDefined(dynamic_cast<ast::ID*>(node.init_exp.get())->value)) {
+                    //std::cout << "errorDefAsFunc" << std::endl;
+                    output::errorDefAsFunc(node.line, dynamic_cast<ast::ID*>(node.init_exp.get())->value);
+                }
+                
+                if(!symbolTable.isVariableDefined(dynamic_cast<ast::ID*>(node.init_exp.get())->value)){
+                    output::errorUndef(node.line, dynamic_cast<ast::ID*>(node.init_exp.get())->value);
+                }
+
+            }
             node.init_exp->accept(*this);
+            
             
             // added and works perfectally for bool values
             if (node.init_exp->type == BuiltInType::VOID) {
@@ -314,37 +409,50 @@ public:
                     node.init_exp->type = BuiltInType::BOOL;
                 }
             }
-            // cout << "node.init_exp->type::" << node.init_exp->type << endl;
-            // cout << "node.type->type::" << node.type->type << endl;
+             //cout << "node.init_exp->type::" << node.init_exp->type << endl;
+             //cout << "node.type->type::" << node.type->type << endl;
             if (node.init_exp->type != node.type->type) {
                 if(node.init_exp->type == BuiltInType::BYTE && node.type->type == BuiltInType::INT){
                     // this is  legit and correct    
                 }
                 else{
-                  
+                    //cout << "vardecl error mismatch" << endl;
                     output::errorMismatch(node.line);
                   
                 }
             }
             
         }
+        if (!symbolTable.addVariable(node.id->value, node.type->type)) {
+            output::errorDef(node.line, node.id->value);
+        }
+        
         printer.emitVar(node.id->value, node.type->type, symbolTable.getOffset(node.id->value));
     }
 
     void visit(ast::Assign &node) override {        
-       // cout << "Assign" << endl;
-        
-       
-
+        //cout << "Assign" << endl;
+         if (symbolTable.isFunctionDefined(node.id->value)) {
+            //std::cout << "errorDefAsFunc" << std::endl;
+            output::errorDefAsFunc(node.line, node.id->value);
+        }
         if (!symbolTable.isVariableDefined(node.id->value)) {
             output::errorUndef(node.line, node.id->value);
         }
 
-        //  cout << "right side::" << node.exp->type << endl;
-        //  cout << "left side::" << node.id->type << endl;
+        //cout << "right side::" << node.exp->type << endl;
+        //cout << "left side::" << node.id->type << endl;
 
         node.id->accept(*this);
-
+        if (dynamic_cast<ast::ID*>(node.exp.get())) {
+                //std::cout << "errorDefAsFunc" << std::endl;
+                
+            
+                if (symbolTable.isFunctionDefined(dynamic_cast<ast::ID*>(node.exp.get())->value)) {
+                    //std::cout << "errorDefAsFunc" << std::endl;
+                    output::errorDefAsFunc(node.line, dynamic_cast<ast::ID*>(node.exp.get())->value);
+                }
+            }
     
         // cout << "node assign" << endl;
         //han bnro7 3la numb
@@ -356,8 +464,8 @@ public:
                 node.exp->type = BuiltInType::BOOL;
             }
         }
-        //  cout << "right side::" << node.exp->type << endl;
-        //  cout << "left side::" << node.id->type << endl;
+        //cout << "right side::" << node.exp->type << endl;
+        //cout << "left side::" << node.id->type << endl;
        
         if (node.exp->type != node.id->type) {
             if(node.exp->type == BuiltInType::BYTE && node.id->type == BuiltInType::INT){
@@ -371,58 +479,15 @@ public:
         
         
         }
-    
-        
-        
-        // if(node.exp->type == BuiltInType::INT){
-        //     cout << "byte in assign" << endl;
-        // }
-        //auto varType = getType(node.id->value);
-        //auto exprType = getType(node.exp);
-
-
-        // if (varType != exprType) {
-        //     output::errorMismatch(node.line, varType, exprType);
-        // }
-
-        // bool flag_found_variable = false; 
-        
-        // std::vector<SymbolTable::Scope> scopes = symbolTable.scopes;
-        // for (auto it = scopes.rbegin(); it != scopes.rend(); ++it) {
-        //     if (it->variables.count(node.id->value) > 0) {
-        //         // if the varibale has a type of int and the expression is type of byte
-        //         if(it->variables[node.id->value].type != node.exp){ 
-        //             //    allow the int variable to be assigned to byte value
-        //             if(it->variables[node.id->value].type == BuiltInType::INT && getType(*node.exp) == BuiltInType::BYTE){
-        //                 std::cout << "int to byte" << std::endl;
-        //             }else{
-        //                 output::errorMismatch(node.line);
-        //             }
-
-                    
-        //         }
-        //     }
-            
-
-            //  if (dynamic_cast<Cast*>(&node)) 
-            //     {
-            //         output::errorMismatch(node.line);
-            //         if(it->variables[node.id->value].type == BuiltInType::BYTE && getType(*node.exp) == BuiltInType::INT)
-            //         {
-            //             output::errorMismatch(node.line);
-            //         }
-            //             //std::cout << "int to byte" << std::endl;
-            //     }
-        //}
 
     }
 
     void visit(ast::Formal &node) override {
 
-        symbolTable.addVariablef(node.id->value, node.type->type);
-            //std::cout << "find in Formal " << std::endl;
-            //output::errorDef(node.line, node.id->value);
-        //}
+        if(!symbolTable.addVariablef(node.id->value, node.type->type)){
+            //cout << "error" << endl;
+            output::errorDef(node.line, node.id->value);
+        }
         printer.emitVar(node.id->value, node.type->type, symbolTable.getOffset(node.id->value));
     }
 
@@ -441,16 +506,23 @@ public:
             //std::cout << "find in FuncDecl " << std::endl;
             output::errorDef(node.line, node.id->value);
         }
-        //std::cout << "funcdecl" << std::endl;
-        
-        //node.id->accept(*this);
-        
+        // if(symbolTable.checkParamNames(node)){
+        //     //cout << "error" << endl;
+        //     output::errorDefAsFunc(node.line, node.id->value);
+        // }
+        //cout << "funcdecl " <<node.id->value<< std::endl;
+        fromFunction=true;
         /////////// hda 3la a5lab lazem an5er m7lha
         printer.emitFunc(node.id->value, node.return_type->type, symbolTable.getParamTypes(node.id->value));
         symbolTable.enterScope();
         printer.beginScope();
         node.formals->accept(*this);
+        node.body->t = node.return_type->type;
+        //cout << "node.body->t " << node.body->t << endl;
         node.body->accept(*this);
+        if (node.return_type->type != node.body->t) {
+            output::errorMismatch(node.line);
+        }
         printer.endScope();
         symbolTable.exitScope();
         

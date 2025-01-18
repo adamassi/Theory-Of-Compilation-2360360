@@ -21,6 +21,11 @@ int main() {
     scopePrinter.emitFunc("print", ast::BuiltInType::VOID, {ast::BuiltInType::STRING});
     scopePrinter.emitFunc("printi", ast::BuiltInType::VOID, {ast::BuiltInType::INT});
     program->accept(semanticVisitor);
+    //chech if there funtion name is main in the functions and its type is void and main must not have parameters
+    
+    if (!symbolTable.isFunctionDefined("main") || symbolTable.getFunctionType("main") != ast::BuiltInType::VOID||symbolTable.getParamTypes("main").size() != 0) {
+        output::errorMainMissing();
+    }
 
     
 

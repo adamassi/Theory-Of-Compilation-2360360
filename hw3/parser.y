@@ -139,9 +139,13 @@ FormalDecl  :   Type ID
 }
 
 Statements  :   Statement                                              
-{ 
-        $$ = std::make_shared<ast::Statements>(std::dynamic_pointer_cast<ast::Statement>($1));
-}
+            { 
+   
+                
+            $$ = std::make_shared<ast::Statements>(std::dynamic_pointer_cast<ast::Statement>($1));
+       
+
+            }
             |   Statements Statement                                    
             { 
                 auto statements = std::dynamic_pointer_cast<ast::Statements>($1);
@@ -150,10 +154,11 @@ Statements  :   Statement
             }
 
 Statement   :   LBRACE Statements RBRACE                                
-{
-        $$ = std::dynamic_pointer_cast<ast::Statements>($2);
-        
-}
+            {
+                    // symbolTable.enterlScope();
+                    $$ = std::dynamic_pointer_cast<ast::Statement>($2);
+                    //symbolTable.exitScope();
+            }
             |   Type ID SC                                              
             { 
                 $$ = std::make_shared<ast::VarDecl>(
@@ -178,12 +183,15 @@ Statement   :   LBRACE Statements RBRACE
             |   Call SC                                                 { $$ = std::dynamic_pointer_cast<ast::Call>($1); }
             |   RETURN SC                                               { $$ = std::make_shared<ast::Return>(nullptr); }
             |   RETURN Exp SC                                           { $$ = std::make_shared<ast::Return>(std::dynamic_pointer_cast<ast::Exp>($2)); }
-            |   IF LPAREN Exp RPAREN Statement                          { $$ = std::make_shared<ast::If>(
+            |   IF LPAREN Exp RPAREN Statement                          
+            {       
+                    $$ = std::make_shared<ast::If>(
                     std::dynamic_pointer_cast<ast::Exp>($3),
                     std::dynamic_pointer_cast<ast::Statement>($5),
                     nullptr
                 ); }
-            |   IF LPAREN Exp RPAREN Statement ELSE Statement           { $$ = std::make_shared<ast::If>(
+            |   IF LPAREN Exp RPAREN Statement ELSE Statement           
+            { $$ = std::make_shared<ast::If>(
                     std::dynamic_pointer_cast<ast::Exp>($3),
                     std::dynamic_pointer_cast<ast::Statement>($5),
                     std::dynamic_pointer_cast<ast::Statement>($7)
