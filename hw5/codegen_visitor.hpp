@@ -11,6 +11,7 @@ using namespace std;
 using namespace ast;
 
 
+
 class CodeGenVisitor : public Visitor {
 public:
     output::CodeBuffer &buffer;
@@ -21,19 +22,26 @@ public:
     CodeGenVisitor(output::CodeBuffer &buffer, SymbolTable &symbolTable)
         : buffer(buffer), symbolTable(symbolTable) {}
 
+    // Load variables from stack
+    std::string load_from_stack(std::string reg, unsigned int offset, std::string in) {
+        std::string var = buffer.freshVar();
+        // buffer << var << " = load i32, i32* " << reg << ", align 4" << std::endl;
+        return var;
+    }
+    
 
-    string convertType(BuiltInType type){
-        switch(type){
+    std::string convertType(BuiltInType type) {
+        switch (type) {
             case BuiltInType::INT:
                 return "i32";
             case BuiltInType::BYTE:
                 return "i8";
             case BuiltInType::BOOL:
                 return "i1";
-            case BuiltInType::VOID:
-                return "void";
+            case BuiltInType::STRING:
+                return "i8*";
             default:
-                return "i32";
+                return "void";
         }
     }
     string convertTypeString(string type){
@@ -53,7 +61,6 @@ public:
             return "i32";
         }
     }
-
     void visit(ast::Num &node) override {
         std::string var = buffer.freshVar();
         buffer << var << " = add i32 0, " << node.value << std::endl;
@@ -75,7 +82,9 @@ public:
     void visit(ast::String &node) override {
         //cout << "String" << endl;
         node.type = BuiltInType::STRING;
-        std::string var = buffer.emitString(node.value);
+        std::string var = buffer.freshVar();
+        std::string strLabel = buffer.emitString(node.value);
+        buffer << var << " = getelementptr [" << (node.value.length() + 1) << " x i8], [" << (node.value.length() + 1) << " x i8]* " << strLabel << ", i32 0, i32 0" << std::endl;
         node.code = var;
     }
 
@@ -285,7 +294,7 @@ public:
         } else if (node.target_type->type == ast::BuiltInType::BYTE && node.exp->type == ast::BuiltInType::INT) {
             buffer << var << " = trunc i32 " << node.exp->code << " to i8" << std::endl;
         } else {
-            var = node.exp->code;
+            var =node.exp->code;
         }
         node.code = var;
     }
@@ -312,8 +321,13 @@ public:
         
          std::string args;
         for (auto &arg : node.args->exps) {
+            //add fun load the arguments from stack
+            
+
             //arg->accept(*this);
-            args += arg->code + ", ";
+            //cout << "arg->code: " << arg->code << endl;
+            args +=convertType(arg->type) +" "+arg->code + ", ";
+
         }
         if (!args.empty()) {
             args.pop_back();
@@ -329,34 +343,24 @@ public:
         
         node.type = symbolTable.getFunctionType(node.func_id->value);
         
-        std::string currentType = "void"; 
-        switch(node.type){
-            case BuiltInType::INT:
-                currentType = "i32";
-                break;
-            case BuiltInType::BYTE:
-                currentType = "i8";
-                break;
-            case BuiltInType::BOOL:
-                currentType = "i1";
-                break;
-            case BuiltInType::VOID:
-                currentType = "void";
-                break;
-            default:
-                output::errorMismatch(node.line);
-                break;
-        }   
-        buffer << var << " = call " << currentType << " @" << node.func_id->value << "(" << args << ")" << std::endl;
+        std::string currentType_string = convertType(node.type);
+        // if the type of the function is not void, then we need to store the return value
+        if (node.type != BuiltInType::VOID) {
+           buffer << var << " = call " << currentType_string << " @" << node.func_id->value << "(" << args << ")" << std::endl;
+        }
+        else{
+            buffer << "call " << currentType_string << " @" << node.func_id->value << "(" << args << ")" << std::endl;
+        }
         node.code = var;
     }
 
     void visit(ast::Statements &node) override {
+        //cout << "Statements" << endl;
         if(fromFunction){
             fromFunction=false;
             for (auto &stmt : node.statements) {
                 stmt->t = node.t;
-                
+                currentType=node.t;
                 stmt->accept(*this);
             }
         }
@@ -388,17 +392,22 @@ public:
     }
 
     void visit(ast::Return &node) override {
+        //cout << "Return" << endl;
         if (node.exp) {
+            //cout << "Return exp" << endl;
             node.exp->accept(*this);
             if (currentType!=node.exp->type)
             {
                 if (!(currentType == BuiltInType::INT && node.exp->type == BuiltInType::BYTE))
                 {
+                    cout << "error mismatch return" << endl;
+                    cout << "currentType" << currentType << endl;
                     output::errorMismatch(node.line);
                 }
             }
-            buffer << "ret " << toString(node.exp->type) << " " << node.exp->code << std::endl;
+            buffer << "ret " << convertType(node.exp->type) << " " << node.exp->code << std::endl;
         } else {
+            cout << "Return void" << endl;
             if (node.t != BuiltInType::VOID)
             {
                 output::errorMismatch(node.line);
@@ -419,17 +428,18 @@ public:
         std::string labelTrue = buffer.freshLabel();
         std::string labelFalse = buffer.freshLabel();
         std::string labelEnd = buffer.freshLabel();
-        buffer << "br i1 " << node.condition->code << ", label %" << labelTrue << ", label %" << labelFalse << std::endl;
+        buffer << "br i1 " << node.condition->code << ", label " << labelTrue << ", label " << labelFalse << std::endl;
         buffer.emitLabel(labelTrue);
         node.then->accept(*this);
-        buffer << "br label %" << labelEnd << std::endl;
+        buffer << "br label " << labelEnd << std::endl;
         buffer.emitLabel(labelFalse);
         symbolTable.exitScope();
         symbolTable.currentOffset=temp;
         if (node.otherwise) {
             node.otherwise->accept(*this);
+            buffer << "br label " << labelEnd << std::endl;
         }
-        buffer << "br label %" << labelEnd << std::endl;
+        // buffer << "br label %" << labelEnd << std::endl;
         buffer.emitLabel(labelEnd);
         
         
@@ -598,6 +608,8 @@ public:
     }
 
     void visit(ast::FuncDecl &node) override {
+        //cout << "FuncDecl" << endl;
+        //cout << "FuncDecl: " << node.id->value << endl;
         // not so sure if needed, the check for defined function accurs in the parser now
         if (!symbolTable.isFunctionDefined(node.id->value)) {
             //std::cout << "find in FuncDecl " << std::endl;
@@ -609,29 +621,13 @@ public:
         // }
         //cout << "funcdecl " <<node.id->value<< std::endl;
         fromFunction=true;
-        std::string currentType = "void"; 
-        switch(node.return_type->type){
-            case BuiltInType::INT:
-                currentType = "i32";
-                break;
-            case BuiltInType::BYTE:
-                currentType = "i8";
-                break;
-            case BuiltInType::BOOL:
-                currentType = "i1";
-                break;
-            case BuiltInType::VOID:
-                currentType = "void";
-                break;
-            default:
-                output::errorMismatch(node.line);
-                break;
-        }   
+        std::string currentType_string = convertType(node.return_type->type); 
+        
 
 
         std::vector<std::string> paramTypes = symbolTable.getParamTypesf(node.id->value);
         int i=0;
-        buffer << "define " << currentType << " @" << node.id->value << "(";
+        buffer << "define " << currentType_string << " @" << node.id->value << "(";
         for (auto &formal : node.formals->formals) {
             if(i == 0)
             {
@@ -661,11 +657,20 @@ public:
             // buffer << "store i32* %" << formal->id->value << ", i32* %" << formal->id->value << std::endl;
             symbolTable.addVariable(formal->id->value, formal->type->type);
         }
+        //cout << "body" << endl;
         node.body->accept(*this);
+        if (node.return_type->type == BuiltInType::VOID) {
+            buffer << "ret void" << std::endl;
+        }
         buffer << "}" << std::endl;
         if (node.return_type->type != node.body->t) {
+            cout << "error mismatch" << endl;
             output::errorMismatch(node.line);
         }
+        //
+        
+        
+       // buffer << "ret " << convertType(node.body->t) << " 0" << std::endl;
         symbolTable.exitScope();
     }
 

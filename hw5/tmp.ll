@@ -1,4 +1,4 @@
-
+@.str0 = constant [5 x i8] c"true\00"
 declare i32 @scanf(i8*, ...)
 declare i32 @printf(i8*, ...)
 declare void @exit(i32)
@@ -23,22 +23,20 @@ define void @print(i8*) {
     ret void
 }
 define void @main() {
-%y = alloca i32
-%t0 = add i32 0, 5
-store i32 %t0, i32* %y
-%z = alloca i32
-%t1 = add i32 0, 5
-store i32 %t1, i32* %z
-%b = alloca i32
-%t2 = add i32 0, 2
-%t3 = load i32, i32* %y
-%t4 = load i32, i32* %z
-%t5 = sub i32 %t3, %t4
-br i1 %t5, label %div_ok, label %div_err
-iv_ok:
-%t6 = sdiv i32 %t2, %t5
-iv_err:
-call void @print(i8* getelementptr ([21 x i8], [21 x i8]* @.str, i32 0, i32 0))
-call void @exit(i32 1)
-store i32 %t6, i32* %b
+%num = alloca i32
+%t0 = add i32 0, 6
+store i32 %t0, i32* %num
+%parity = alloca i32
+%t1 = add i32 0, 3
+store i32 %t1, i32* %parity
+%t2 = add i1 0, 1
+br i1 %t2, label %label_0, label %label_1
+label_0:
+br label %label_2
+label_1:
+br label %label_2
+label_2:
+%t3 = getelementptr [5 x i8], [5 x i8]* @.str0, i32 0, i32 0
+call void @print(i8* %t3)
+ret void
 }
