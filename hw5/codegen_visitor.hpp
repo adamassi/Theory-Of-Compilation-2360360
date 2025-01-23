@@ -20,7 +20,9 @@ public:
     BuiltInType currentType; // Context variable to hold the current type
 
     CodeGenVisitor(output::CodeBuffer &buffer, SymbolTable &symbolTable)
-        : buffer(buffer), symbolTable(symbolTable) {}
+        : buffer(buffer), symbolTable(symbolTable) {
+        
+    }
 
     // Load variables from stack
     std::string load_from_stack(std::string reg, unsigned int offset, std::string in) {
@@ -106,7 +108,12 @@ public:
             node.type = symbolTable.getVariableType(node.value);
         }
         std::string var = buffer.freshVar();
-        buffer << var << " = load i32, i32* %" << node.value << std::endl;
+        std::string type = convertType(node.type);
+        if (symbolTable.isFormalParameter(node.value)) {
+            buffer << var << " = load " << type << ", " << type << "* %" << node.value << "_ptr" << std::endl;
+        } else {
+            buffer << var << " = load " << type << ", " << type << "* %" << node.value << std::endl;
+        }
         node.code = var;
     }
 
@@ -140,15 +147,29 @@ public:
             case ast::BinOpType::MUL:
                 buffer << var << " = mul i32 " << node.left->code << ", " << node.right->code << std::endl;
                 break;
+                
+                
             case ast::BinOpType::DIV:
-                buffer << "br i1 " << node.right->code << ", label %div_ok, label %div_err" << std::endl;
-                buffer.emitLabel("div_ok");
+            // if (node.left->type == BuiltInType::INT) {
+            //     buffer << var << " = sdiv i32 " << node.left->code << ", " << node.right->code << std::endl;
+            // } else {
+            //     buffer << var << " = udiv i32 " << node.left->code << ", " << node.right->code << std::endl;
+            // }
+                std::string extendedRight = buffer.freshVar();
+                buffer << extendedRight << " = icmp ne i32 " << node.right->code << ", 0" << std::endl;
+                //node.right->code = extendedRight;
+                buffer << "br i1 " << extendedRight << ", label "<<"%"<<"div_ok, label "<<"%"<<"div_err" << std::endl;
+                buffer.emitLabel("%div_err");
+                buffer << "call void @divide_by_zero_error()" << std::endl;
+                buffer << "br label %div_ok" << std::endl;
+                buffer.emitLabel("%div_ok");
                 buffer << var << " = sdiv i32 " << node.left->code << ", " << node.right->code << std::endl;
-                buffer.emitLabel("div_err");
-                buffer << "call void @print(i8* getelementptr ([21 x i8], [21 x i8]* @.str, i32 0, i32 0))" << std::endl;
-                buffer << "call void @exit(i32 1)" << std::endl;
+                
+        
                 break;
+                
         }
+       
         node.code = var;
     }
 
@@ -218,18 +239,32 @@ public:
         std::string labelFalse = buffer.freshLabel();
         std::string labelEnd = buffer.freshLabel();
         std::string var = buffer.freshVar();
-        buffer << "br i1 " << node.left->code << ", label %" << labelTrue << ", label %" << labelFalse << std::endl;
+        std::string old = node.t_label;
+        node.t_label = labelTrue;
+        node.f_label = labelEnd;
+        buffer << "br i1 " << node.left->code << ", label " << labelTrue << ", label " << labelFalse << std::endl;
         buffer.emitLabel(labelTrue);
         node.right->accept(*this);
         if (node.right->type != BuiltInType::BOOL) {
             output::errorMismatch(node.line);
         }
-        node.type = ast::BuiltInType::BOOL;
-        buffer << "br label %" << labelEnd << std::endl;
+        node.type = BuiltInType::BOOL;
+        
+        buffer << "br label " << labelEnd << std::endl;
         buffer.emitLabel(labelFalse);
-        buffer << "br label %" << labelEnd << std::endl;
+        buffer << "br label " << labelEnd << std::endl;
         buffer.emitLabel(labelEnd);
-        buffer << var << " = phi i1 [ " << node.right->code << ", %" << labelTrue << " ], [ 0, %" << labelFalse << " ]" << std::endl;
+        if(node.right->f_label == "") {
+            if(node.right->t_label == "") {
+                buffer << var << " = phi i1 [ " << node.right->code << ", " << labelTrue << "], [ 0, " << labelFalse << " ]" << std::endl;
+            } else {
+                buffer << var << " = phi i1 [ " << node.right->code << ", " << node.right->t_label << "], [ 0, " << labelFalse << " ]" << std::endl;
+            }
+            //buffer << var << " = phi i1 [ " << node.right->code << ", " << labelTrue << " ], [ 0, " << labelFalse << " ]" << std::endl;
+        } else {
+            buffer << var << " = phi i1 [ " << node.right->code << ", " << node.right->f_label << "], [ 0, " << labelFalse  << " ]" << std::endl;
+        }
+        //buffer << var << " = phi i1 [ " << node.right->code << ", " << labelTrue << " ], [ 0, " << labelFalse << " ]" << std::endl;
         node.code = var;
     }
 
@@ -242,18 +277,26 @@ public:
         std::string labelFalse = buffer.freshLabel();
         std::string labelEnd = buffer.freshLabel();
         std::string var = buffer.freshVar();
-        buffer << "br i1 " << node.left->code << ", label %" << labelTrue << ", label %" << labelFalse << std::endl;
+        node.t_label = labelTrue;
+        node.f_label = labelEnd;
+        buffer << "br i1 " << node.left->code << ", label " << labelTrue << ", label " << labelFalse << std::endl;
         buffer.emitLabel(labelTrue);
-        buffer << "br label %" << labelEnd << std::endl;
+        buffer << "br label " << labelEnd << std::endl;
         buffer.emitLabel(labelFalse);
         node.right->accept(*this);
         if (node.right->type != BuiltInType::BOOL) {
             output::errorMismatch(node.line);
         }
-        node.type = ast::BuiltInType::BOOL;
-        buffer << "br label %" << labelEnd << std::endl;
+        node.type = BuiltInType::BOOL;
+       
+        buffer << "br label " << labelEnd << std::endl;
         buffer.emitLabel(labelEnd);
-        buffer << var << " = phi i1 [ 1, %" << labelTrue << " ], [ " << node.right->code << ", %" << labelFalse << " ]" << std::endl;
+        if(node.right->f_label == "") {
+            buffer << var << " = phi i1 [ 1, " << labelTrue << " ], [ " << node.right->code << ", " << labelFalse << " ]" << std::endl;
+        } else {
+            buffer << var << " = phi i1 [ 1, " << labelTrue << " ], [ " << node.right->code << ", " << node.right->f_label << " ]" << std::endl;
+        }
+        //buffer << var << " = phi i1 [ 1, " << node.t_label << " ], [ " << node.right->code << ", " << node.right->f_label << " ]" << std::endl;
         node.code = var;
     }
 
@@ -381,14 +424,14 @@ public:
          if (!inLoop) {
             output::errorUnexpectedBreak(node.line);
         }
-        buffer << "br label %" << breakLabel << std::endl;
+        buffer << "br label " << breakLabel << std::endl;
     }
 
     void visit(ast::Continue &node) override {
         if (!inLoop) {
             output::errorUnexpectedContinue(node.line);
         }
-        buffer << "br label %" << continueLabel << std::endl;
+        buffer << "br label " << continueLabel << std::endl;
     }
 
     void visit(ast::Return &node) override {
@@ -453,7 +496,7 @@ public:
         std::string oldContinueLabel = continueLabel;
         breakLabel = labelEnd;
         continueLabel = labelCond;
-        buffer << "br label %" << labelCond << std::endl;
+        buffer << "br label " << labelCond << std::endl;
         buffer.emitLabel(labelCond);
         //
         bool previousInLoop = inLoop;
@@ -462,10 +505,10 @@ public:
         symbolTable.enterlScope();
         // 
         node.condition->accept(*this);
-        buffer << "br i1 " << node.condition->code << ", label %" << labelBody << ", label %" << labelEnd << std::endl;
+        buffer << "br i1 " << node.condition->code << ", label " << labelBody << ", label " << labelEnd << std::endl;
         buffer.emitLabel(labelBody);
         node.body->accept(*this);
-        buffer << "br label %" << labelCond << std::endl;
+        buffer << "br label " << labelCond << std::endl;
         buffer.emitLabel(labelEnd);
         breakLabel = oldBreakLabel;
         continueLabel = oldContinueLabel;
@@ -601,7 +644,7 @@ public:
     void visit(ast::Formals &node) override {
         // No code generation needed for formals
         symbolTable.currentOffset = -1;
-        for (auto &formal : node.formals) {
+        for (auto &formal : node.formals) { 
             formal->accept(*this);
         }
         symbolTable.currentOffset = 0;
@@ -631,10 +674,10 @@ public:
         for (auto &formal : node.formals->formals) {
             if(i == 0)
             {
-                buffer << convertTypeString(paramTypes[i]);
+                buffer << convertTypeString(paramTypes[i]) << " %" << formal->id->value;
             }
             else{
-                buffer << ", " << convertTypeString(paramTypes[i]);
+                buffer << ", " << convertTypeString(paramTypes[i]) << " %" << formal->id->value;
             }
             
             i++;
@@ -650,13 +693,13 @@ public:
         node.body->t = node.return_type->type;
 
         for (auto &formal : node.formals->formals) {
-            //////////////////////////////////////////////
-            //AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-            //NRG3 ANZBTO
-            // buffer << "%" << formal->id->value << " = alloca i32" << std::endl;
-            // buffer << "store i32* %" << formal->id->value << ", i32* %" << formal->id->value << std::endl;
+            std::string var = "%" + formal->id->value;
+            std::string type = convertType(formal->type->type);
+            buffer << var << "_ptr = alloca " << type << std::endl;
+            buffer << "store " << type << " %" << formal->id->value << ", " << type << "* " << var << "_ptr" << std::endl;
             symbolTable.addVariable(formal->id->value, formal->type->type);
         }
+        
         //cout << "body" << endl;
         node.body->accept(*this);
         if (node.return_type->type == BuiltInType::VOID) {

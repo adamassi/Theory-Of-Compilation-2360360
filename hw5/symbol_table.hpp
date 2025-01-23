@@ -43,7 +43,7 @@ public:
         if (isVariableDefinedInCurrentOrNestedScopes(name)) {
             return false;
         }
-        currentScope().variables[name] = {type, currentOffset--};
+        currentScope().variables[name] = {type, currentOffset--, true}; // Mark as formal parameter
         return true;
     }
     //add variable to the current scope check if the variable is already defined in the scop or is function name
@@ -259,6 +259,7 @@ public:
     struct Variable {
         ast::BuiltInType type;
         int offset;
+        bool isFormal; // Add this flag
     };
 
     struct Function {
@@ -290,6 +291,15 @@ public:
         return false;
     }
    
+    bool isFormalParameter(const std::string &name) const {
+        for (auto it = scopes.rbegin(); it != scopes.rend(); ++it) {
+            auto varIt = it->variables.find(name);
+            if (varIt != it->variables.end()) {
+                return varIt->second.isFormal;
+            }
+        }
+        return false;
+    }
 };
 
 #endif // SYMBOL_TABLE_HPP

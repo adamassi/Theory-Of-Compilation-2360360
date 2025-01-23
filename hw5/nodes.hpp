@@ -58,6 +58,10 @@ namespace ast {
         Exp() = default;
 
         BuiltInType type;
+        // New fields to store labels
+        std::string t_label;
+        std::string f_label;
+       
     };
 
     /* Base class for all statements */

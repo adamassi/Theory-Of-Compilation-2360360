@@ -1,17 +1,37 @@
-int f(){
-    int x;
-    return 1;
+void printByValue(bool val) {
+	int y =0;
+    if (val)
+		print("val is true");
+	else {
+		print("val is false");
+	}
+    if(y==0)
+    	print("y is here");
+	else {
+		print("yyyy");
+	}
+    
 }
 void main() {
-    int num = 6; 
-    int parity = 3; 
-    //string a = "";
-    
-    if (true) {
-        int x;
-    } else {
-        int x;
+	printByValue(true);
+	printByValue(false);
+    int x = 5;
+	if(x == 5)
+    {
+        print("true");
     }
-	print("true");
-    int x=f();
+    else{
+        print("false");
+    
+    }
+
+    if(false or false and  true)
+    {
+        print("2true");
+    }
+    else
+    {
+        print("2false");
+    }
 }
+

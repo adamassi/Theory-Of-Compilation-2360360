@@ -61,8 +61,17 @@ void init_buffer(){
     codeBuffer.emit("    call i32 (i8*, ...) @printf(i8* %spec_ptr, i8* %0)");
     codeBuffer.emit("    ret void");
     codeBuffer.emit("}");
+
+    // Add the divide_by_zero_error function declaration at the top
+        codeBuffer.emit("@divide_by_zero_message = constant [23 x i8] c\"Error division by zero\\00\"" );
+        codeBuffer.emit("define void @divide_by_zero_error() {");
+        codeBuffer.emit("    %divide_by_zero_ptr = getelementptr [23 x i8], [23 x i8]* @divide_by_zero_message, i32 0, i32 0");
+        codeBuffer.emit("    call void @print(i8* %divide_by_zero_ptr)");
+        codeBuffer.emit("    call void @exit(i32 0)");
+        codeBuffer.emit("    ret void");
+        codeBuffer.emit("}");
   
-}
+}   
 
 int main() {
     init_buffer();
