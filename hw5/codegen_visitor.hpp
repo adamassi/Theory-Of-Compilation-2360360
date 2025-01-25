@@ -102,6 +102,7 @@ public:
     void visit(ast::ID &node) override {
         //std::cout << "ID" << std::endl;
         if (!symbolTable.isVariableDefined(node.value)) {
+            //cout << "errorUndef" << endl;
             output::errorUndef(node.line, node.value);
         }
         else{
@@ -480,8 +481,9 @@ public:
         symbolTable.currentOffset=temp;
         if (node.otherwise) {
             node.otherwise->accept(*this);
-            buffer << "br label " << labelEnd << std::endl;
+            
         }
+        buffer << "br label " << labelEnd << std::endl;
         // buffer << "br label %" << labelEnd << std::endl;
         buffer.emitLabel(labelEnd);
         
@@ -530,57 +532,62 @@ public:
         // node.init_exp if the right side of the assignment is not null
         if (node.init_exp) {
             //cout << "node.init_exp" << endl;
-            //han bnro7 3la numb
-            
-            
-            
-        std::string var = "%" + node.id->value;
-        buffer << var << " = alloca i32" << std::endl;
-        if (node.init_exp) {
-            if (dynamic_cast<ast::ID*>(node.init_exp.get())) {
-                //std::cout << "errorDefAsFunc" << std::endl;
-                
-            
-                if (symbolTable.isFunctionDefined(dynamic_cast<ast::ID*>(node.init_exp.get())->value)) {
+            std::string var = "%" + node.id->value;
+            buffer << var << " = alloca i32" << std::endl;
+            if (node.init_exp) {
+                if (dynamic_cast<ast::ID*>(node.init_exp.get())) {
                     //std::cout << "errorDefAsFunc" << std::endl;
-                    output::errorDefAsFunc(node.line, dynamic_cast<ast::ID*>(node.init_exp.get())->value);
+                    if (symbolTable.isFunctionDefined(dynamic_cast<ast::ID*>(node.init_exp.get())->value)) {
+                        //std::cout << "errorDefAsFunc" << std::endl;
+                        output::errorDefAsFunc(node.line, dynamic_cast<ast::ID*>(node.init_exp.get())->value);
+                    }
+                    
+                    if(!symbolTable.isVariableDefined(dynamic_cast<ast::ID*>(node.init_exp.get())->value)){
+                        output::errorUndef(node.line, dynamic_cast<ast::ID*>(node.init_exp.get())->value);
+                    }
+                }
+                node.init_exp->accept(*this);
+                if (node.init_exp->type == BuiltInType::VOID) {
+                    if (dynamic_cast<ast::Bool*>(node.init_exp.get())) {
+                        node.init_exp->type = BuiltInType::BOOL;
+                    }
+                }
+                //cout << "node.init_exp->type::" << node.init_exp->type << endl;
+                //cout << "node.type->type::" << node.type->type << endl;
+                if (node.init_exp->type != node.type->type) {
+                    if(node.init_exp->type == BuiltInType::BYTE && node.type->type == BuiltInType::INT){
+                        // this is  legit and correct    
+                    }
+                    else{
+                        //cout << "vardecl error mismatch" << endl;
+                        output::errorMismatch(node.line);
+                    
+                    }
                 }
                 
-                if(!symbolTable.isVariableDefined(dynamic_cast<ast::ID*>(node.init_exp.get())->value)){
-                    output::errorUndef(node.line, dynamic_cast<ast::ID*>(node.init_exp.get())->value);
-                }
-
+                buffer << "store i32 " << node.init_exp->code << ", i32* " << var << std::endl;
             }
-            node.init_exp->accept(*this);
-             if (node.init_exp->type == BuiltInType::VOID) {
-                if (dynamic_cast<ast::Bool*>(node.init_exp.get())) {
-                    node.init_exp->type = BuiltInType::BOOL;
-                }
-            }
-             //cout << "node.init_exp->type::" << node.init_exp->type << endl;
-             //cout << "node.type->type::" << node.type->type << endl;
-            if (node.init_exp->type != node.type->type) {
-                if(node.init_exp->type == BuiltInType::BYTE && node.type->type == BuiltInType::INT){
-                    // this is  legit and correct    
-                }
-                else{
-                    //cout << "vardecl error mismatch" << endl;
-                    output::errorMismatch(node.line);
-                  
-                }
+             else {
+                buffer << "store i32 0, i32* " << var << std::endl;
             }
             
-            buffer << "store i32 " << node.init_exp->code << ", i32* " << var << std::endl;
-        } else {
-            buffer << "store i32 0, i32* " << var << std::endl;
+           
+            //symbolTable.addVariable(node.id->value, node.type->type);
         }
+         if (!symbolTable.addVariable(node.id->value, node.type->type)) {
+                output::errorDef(node.line, node.id->value);
+            }
+            
+        // if (node.type==BuiltInType::BYTE) {
+        //     buffer << "%" << node.id->value << " = alloca i8" << std::endl;
+        // }
+        // else if (node.type==BuiltInType::BOOL) {
+        //     buffer << "%" << node.id->value << " = alloca i1" << std::endl;
+        // }
+        // else if (node.type==BuiltInType::STRING) {
+        //     buffer << "%" << node.id->value << " = alloca i8*" << std::endl;
+        // }
         
-        if (!symbolTable.addVariable(node.id->value, node.type->type)) {
-            output::errorDef(node.line, node.id->value);
-        }
-        
-        //symbolTable.addVariable(node.id->value, node.type->type);
-        }
     }
 
     void visit(ast::Assign &node) override {
