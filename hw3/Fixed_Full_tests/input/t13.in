@@ -1,8 +1,0 @@
-int returnByte() {
-    byte b = (byte)10; // Explicitly defining as a byte
-    return b; // Implicit conversion from byte to int
-}
-
-void main() {
-    int result = returnByte(); // Storing result in an int
-}

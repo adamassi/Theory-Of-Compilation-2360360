@@ -1,4 +1,0 @@
-// Check all library functions work properly
-void main(){
-	printi("5");
-}

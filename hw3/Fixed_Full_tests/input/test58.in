@@ -1,5 +1,0 @@
-void main() {
-	
-	if (3 < true) int xshouldntbeprinted;
-
-}

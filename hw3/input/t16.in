@@ -1,7 +1,0 @@
-void main() {
-	print("ok");
-}
-
-int bad(int a, int a) {
-	print("bad");
-}

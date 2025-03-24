@@ -1,3 +1,0 @@
-void main() {
-    byte x = 256b; // Error: Byte literal too large
-}

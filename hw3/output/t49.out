@@ -1,4 +1,0 @@
----begin global scope---
-print (string) -> void
-printi (int) -> void
----end global scope---

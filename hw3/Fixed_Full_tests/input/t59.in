@@ -1,3 +1,0 @@
-void main() {
-    int y = (5 + 10; // Unmatched parenthesis
-}

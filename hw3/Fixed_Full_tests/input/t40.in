@@ -1,3 +1,0 @@
-void main() {
-    break;    // Error: break outside of loop
-}

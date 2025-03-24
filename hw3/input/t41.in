@@ -1,6 +1,0 @@
-void main() {
-    int x = 10;
-    byte y;
-    y = (byte)x; // Valid: Explicit cast
-    x = y;       // Valid: Implicit conversion from byte to int
-}

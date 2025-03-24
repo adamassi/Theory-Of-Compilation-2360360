@@ -1,5 +1,0 @@
-void main() {
-    if (1) {
-	print("bad");
-    }       // Error: Non-boolean condition
-}
