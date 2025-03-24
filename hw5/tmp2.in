@@ -1,7 +1,0 @@
-void main() {
-    if (true and (false or true) and (true or false)) {
-        print("true");
-    } else {
-        print("false");
-    }
-}
